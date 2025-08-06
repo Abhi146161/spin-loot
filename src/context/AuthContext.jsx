@@ -1,38 +1,51 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
-import { app } from "../firebase/firebase";
+// ✅ UPDATED AuthContext.jsx
+import React, { useContext, useEffect, useState, createContext } from "react";
+import { auth, provider } from "../firebase/firebase";
+import {
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+  GoogleAuthProvider,
+} from "firebase/auth";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const auth = getAuth(app);
-  const provider = new GoogleAuthProvider();
-
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = () => {
-    signInWithPopup(auth, provider);
+  const login = async () => {
+    try {
+      const result = await signInWithPopup(auth, provider);
+      setUser(result.user);
+    } catch (error) {
+      console.error("Login failed:", error);
+    }
   };
 
-  const logout = () => {
-    signOut(auth);
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      setUser(null);
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
   };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [auth]);
+  }, []);
 
-  const value = {
-    user,
-    login,
-    logout, // 👈 Added logout function
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, login, logout }}>
+      {!loading && children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => useContext(AuthContext);
